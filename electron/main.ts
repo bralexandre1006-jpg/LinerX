@@ -145,6 +145,8 @@ let touchBarManager: TouchBarManager | null = null;
 let overlayManager: OverlayManager | null = null;
 let thumbar: ThumbarController | null = null;
 let bundleManager: BundleManager | null = null;
+// LinerX: official OTA bundles / installers would overwrite the local modifications
+const LINERX_NO_REMOTE_UPDATES = true;
 let discordRpcManager: DiscordRpcManager | null = null;
 let poTokenService: PoTokenService | null = null;
 let windowStateStore: ReturnType<typeof createWindowStateStore> | null = null;
@@ -489,6 +491,8 @@ function createWindow() {
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else if (LINERX_NO_REMOTE_UPDATES) {
+    mainWindow.loadFile(path.join(RENDERER_DIST, "index.html"));
   } else {
     bundleManager = new BundleManager({
       defaultRendererDist: RENDERER_DIST,
@@ -2057,7 +2061,7 @@ if (!gotTheLock) {
     });
 
     // automatic update check after window initialization (packaged app only)
-    if (app.isPackaged && !IS_STAGING) {
+    if (app.isPackaged && !IS_STAGING && !LINERX_NO_REMOTE_UPDATES) {
       setTimeout(() => {
         autoUpdater.checkForUpdates().catch((err) => {
           console.error(
