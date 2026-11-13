@@ -30,6 +30,7 @@ import { goOnline } from "@/features/connectivity/engine/offlineController";
 import { useSavedTracks } from "../saved/hooks/useSavedTracks";
 import LibraryVisibilityModal, {
   getItemSource,
+  SPECIAL_CARDS,
 } from "./modals/LibraryVisibilityModal";
 import { useLibraryVisibilityStore } from "../store/libraryVisibilityStore";
 
@@ -207,13 +208,17 @@ function OnlineLibraryPage() {
   const cachedVisibleOnline = useCachedTracksStore(
     (state) => state.visibleOnline,
   );
-  const showCachedSongs = cachedVisibleOnline;
+
   const { data: likedCount, isLoading: likedCountLoading } =
     useLikedTrackCount();
   const openCreatePlaylist = useModalStore((state) => state.openCreatePlaylist);
   const [visibilityOpen, setVisibilityOpen] = useState(false);
   const hiddenIds = useLibraryVisibilityStore((s) => s.hiddenIds);
   const hiddenSources = useLibraryVisibilityStore((s) => s.hiddenSources);
+  const [likesId, cachedId, localId] = SPECIAL_CARDS.map((c) => c.id);
+  const showLikesCard = !hiddenIds.includes(likesId);
+  const showLocalCard = !hiddenIds.includes(localId);
+  const showCachedSongs = cachedVisibleOnline && !hiddenIds.includes(cachedId);
 
   const playlistItems: LibraryItemViewModel[] = useMemo(() => {
     if (!playlistsData) return [];
@@ -485,15 +490,19 @@ function OnlineLibraryPage() {
                   prependNodes={
                     showsPlaylists && !hasSearchQuery
                       ? [
-                          <LikesPlaylistCard
-                            key="likes-playlist-card"
-                            count={likedCount}
-                            isLoading={likedCountLoading}
-                            viewMode={viewMode}
-                            onClick={() =>
-                              navigate("/library/playlist?id=likes")
-                            }
-                          />,
+                          ...(showLikesCard
+                            ? [
+                                <LikesPlaylistCard
+                                  key="likes-playlist-card"
+                                  count={likedCount}
+                                  isLoading={likedCountLoading}
+                                  viewMode={viewMode}
+                                  onClick={() =>
+                                    navigate("/library/playlist?id=likes")
+                                  }
+                                />,
+                              ]
+                            : []),
                           ...(showCachedSongs
                             ? [
                                 <CachedSongsCard
@@ -502,10 +511,14 @@ function OnlineLibraryPage() {
                                 />,
                               ]
                             : []),
-                          <LocalFilesCard
-                            key="local-files-card"
-                            viewMode={viewMode}
-                          />,
+                          ...(showLocalCard
+                            ? [
+                                <LocalFilesCard
+                                  key="local-files-card"
+                                  viewMode={viewMode}
+                                />,
+                              ]
+                            : []),
                           ...(isImporting && importJob
                             ? [
                                 <ImportingPlaylistCard

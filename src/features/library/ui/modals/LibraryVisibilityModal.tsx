@@ -20,6 +20,12 @@ const SOURCE_LABELS: Record<LibrarySourceKey, string> = {
   youtube: "Synchronisés depuis YouTube Music",
 };
 
+export const SPECIAL_CARDS = [
+  { id: "__linerx_likes", label: "Titres aimés" },
+  { id: "__linerx_cached", label: "Cached songs" },
+  { id: "__linerx_local", label: "Sur cet appareil" },
+] as const;
+
 const KIND_LABELS: Record<LibraryItemViewModel["kind"], string> = {
   playlist: "Playlist",
   album: "Album",
@@ -90,6 +96,21 @@ export default function LibraryVisibilityModal({
           title="Affichage de la bibliothèque"
           description="Coche ce que tu veux voir dans ta bibliothèque."
         />
+
+        <div className="mb-[12px] flex flex-col gap-[4px]">
+          <span className="text-caption text-text-tertiary">Raccourcis</span>
+          {SPECIAL_CARDS.map((card) => (
+            <button
+              key={card.id}
+              type="button"
+              onClick={() => toggleItem(card.id)}
+              className="flex items-center gap-[10px] rounded-control border-0 bg-transparent p-[6px] text-left text-label text-text-primary cursor-pointer hover:bg-border-alpha-14"
+            >
+              <Checkbox checked={!hiddenSet.has(card.id)} />
+              {card.label}
+            </button>
+          ))}
+        </div>
 
         <div className="mb-[12px] flex flex-col gap-[4px]">
           <span className="text-caption text-text-tertiary">Sources</span>
