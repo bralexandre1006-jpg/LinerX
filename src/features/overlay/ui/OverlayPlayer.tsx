@@ -6,7 +6,14 @@ import {
   ICON_PLAY,
   ICON_PAUSE,
 } from "@/features/player/ui/morphPlayerIcons";
-import { HeartFill, HeartLine, PinFill, PinLine } from "@mingcute/react";
+import {
+  HeartFill,
+  HeartLine,
+  PinFill,
+  PinLine,
+  FullscreenLine,
+  FullscreenExitLine,
+} from "@mingcute/react";
 import CoverImage from "@/features/covers/ui/CoverImage";
 import { ScrollableText } from "@/shared/ui/ScrollableText";
 import { useDisableButtonFocus } from "@/features/navigation/hooks/useDisableButtonFocus";
@@ -29,6 +36,18 @@ function sampledPositionMs({
   const rate = playbackRate && playbackRate > 0 ? playbackRate : 1;
   return positionMs + Math.max(0, Date.now() - positionAt) * rate;
 }
+
+function formatTime(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(total / 60);
+  const sec = total % 60;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+
+const stopMouseDown = (e: React.MouseEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+};
 
 const OVERLAY_CARD_TRANSITION = {
   duration: 0.08,
@@ -63,6 +82,22 @@ export function OverlayPlayer() {
       ?.setOverlayLocked?.(next)
       .then((v) => setLocked(v === true));
   }, [locked]);
+  const [size, setSize] = useState<"compact" | "large">("compact");
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    window.linerElectron
+      ?.getOverlaySize?.()
+      .then((v) => setSize(v === "large" ? "large" : "compact"));
+  }, []);
+
+  const toggleSize = useCallback(() => {
+    const next = size === "large" ? "compact" : "large";
+    setSize(next);
+    window.linerElectron
+      ?.setOverlaySize?.(next)
+      .then((v) => setSize(v === "large" ? "large" : "compact"));
+  }, [size]);
   const [isVisible, setIsVisible] = useState(true);
   const [isShown, setIsShown] = useState(
     () => !window.linerElectron?.onOverlayVisibility,
@@ -283,12 +318,254 @@ export function OverlayPlayer() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentPosMs, durationMs, sendAction, state.volume, stateTrackId]);
 
+  const coverSrc = state.track?.coverUrl || state.track?.cover || "";
+  const dragStyle = {
+    WebkitAppRegion: locked ? "no-drag" : "drag",
+  } as React.CSSProperties;
+  const noDrag = { WebkitAppRegion: "no-drag" } as React.CSSProperties;
+
+  const pinButton = (
+    <button
+      type="button"
+      tabIndex={-1}
+      onMouseDown={stopMouseDown}
+      onClick={(e) => {
+        e.stopPropagation();
+        toggleLocked();
+      }}
+      className={`flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-lg border-0 bg-transparent transition-colors outline-none cursor-pointer active:scale-90 ${
+        locked ? "text-white" : "text-white/40 hover:text-white"
+      }`}
+      aria-label={locked ? "Déverrouiller la position" : "Fixer la position"}
+      title={locked ? "Déverrouiller la position" : "Fixer la position"}
+    >
+      {locked ? <PinFill size={14} /> : <PinLine size={14} />}
+    </button>
+  );
+
+  const sizeButton = (
+    <button
+      type="button"
+      tabIndex={-1}
+      onMouseDown={stopMouseDown}
+      onClick={(e) => {
+        e.stopPropagation();
+        toggleSize();
+      }}
+      className="flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-lg border-0 bg-transparent text-white/40 hover:text-white transition-colors outline-none cursor-pointer active:scale-90"
+      aria-label={size === "large" ? "Réduire le widget" : "Agrandir le widget"}
+      title={size === "large" ? "Réduire le widget" : "Agrandir le widget"}
+    >
+      {size === "large" ? (
+        <FullscreenExitLine size={14} />
+      ) : (
+        <FullscreenLine size={14} />
+      )}
+    </button>
+  );
+
+  if (size === "large") {
+    return (
+      <div
+        className="flex h-screen w-screen select-none flex-col bg-transparent antialiased overflow-hidden font-sans p-1 m-0 border-0"
+        style={dragStyle}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <motion.div
+          initial={false}
+          animate={{ opacity: isVisible ? 1 : 0, scale: isVisible ? 1 : 0.95 }}
+          transition={OVERLAY_CARD_TRANSITION}
+          className="relative flex h-full w-full flex-col overflow-hidden rounded-[22px] bg-[#0d0d10]"
+          style={{ willChange: "transform, opacity" }}
+        >
+          {coverSrc ? (
+            <img
+              src={coverSrc}
+              alt=""
+              draggable={false}
+              className="pointer-events-none absolute inset-0 h-full w-full scale-150 object-cover opacity-60"
+              style={{ filter: "blur(36px) saturate(1.4)" }}
+            />
+          ) : null}
+          <div className="pointer-events-none absolute inset-0 bg-black/35" />
+
+          <div className="relative z-[2] flex h-full w-full gap-[14px] p-[14px]">
+            <div className="relative h-[140px] w-[140px] shrink-0 overflow-hidden rounded-[14px] bg-white/10 shadow-lg">
+              {coverSrc ? (
+                <CoverImage
+                  key={coverSrc}
+                  src={coverSrc}
+                  alt={state.track?.title || "Artwork"}
+                  fill
+                  sizes="140px"
+                  priority
+                  unoptimized
+                  draggable={false}
+                  className="object-cover pointer-events-none select-none"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[32px] text-white/30">
+                  ♪
+                </div>
+              )}
+            </div>
+
+            <div className="flex min-w-0 flex-1 flex-col justify-between">
+              <div className="flex items-start gap-[4px]">
+                <div
+                  className="flex min-w-0 flex-1 flex-col"
+                  onMouseEnter={() => setIsInfoHovered(true)}
+                  onMouseLeave={() => setIsInfoHovered(false)}
+                >
+                  <ScrollableText
+                    text={state.track?.title || "Aucune lecture"}
+                    isParentHovered={isInfoHovered}
+                    className="text-[16px] font-semibold leading-[20px] text-white tracking-tight"
+                  />
+                  <ScrollableText
+                    text={state.track?.artist || ""}
+                    isParentHovered={isInfoHovered}
+                    className="mt-[2px] text-[13px] leading-[16px] text-white/65"
+                  />
+                </div>
+                <div
+                  className={`flex shrink-0 items-center transition-opacity ${
+                    isHovered || locked ? "opacity-100" : "opacity-0"
+                  }`}
+                  style={noDrag}
+                >
+                  {pinButton}
+                  {sizeButton}
+                </div>
+              </div>
+
+              <div style={noDrag}>
+                <div
+                  className="group relative h-[14px] w-full cursor-pointer"
+                  onMouseDown={stopMouseDown}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const ratio = Math.min(
+                      1,
+                      Math.max(0, (e.clientX - rect.left) / rect.width),
+                    );
+                    const positionMs = Math.round(ratio * durationMs);
+                    anchorPosRef.current = positionMs;
+                    anchorTimeRef.current = performance.now();
+                    setInterpolatedPosMs(positionMs);
+                    sendAction({ type: "seek", payload: { positionMs } });
+                  }}
+                >
+                  <div className="absolute inset-x-0 top-1/2 h-[4px] -translate-y-1/2 overflow-hidden rounded-full bg-white/20 transition-[height] group-hover:h-[6px]">
+                    <div
+                      className="h-full rounded-full bg-white"
+                      style={{ width: `${progressRatio * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-between text-[10.5px] tabular-nums text-white/55">
+                  <span>{formatTime(currentPosMs)}</span>
+                  <span>
+                    -{formatTime(Math.max(0, durationMs - currentPosMs))}
+                  </span>
+                </div>
+              </div>
+
+              <div
+                className="flex items-center justify-center gap-[14px]"
+                style={noDrag}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                {!isLocalTrackId(state.track?.id) ? (
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onMouseDown={stopMouseDown}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      sendAction({ type: "like" });
+                    }}
+                    className={`flex h-[30px] w-[30px] items-center justify-center rounded-full border-0 bg-transparent outline-none cursor-pointer active:scale-90 transition-colors ${
+                      state.isLiked
+                        ? "text-[#ff3b5c]"
+                        : "text-white/55 hover:text-white"
+                    }`}
+                    aria-label={state.isLiked ? "Unlike" : "Like"}
+                  >
+                    {state.isLiked ? (
+                      <HeartFill size={18} />
+                    ) : (
+                      <HeartLine size={18} />
+                    )}
+                  </button>
+                ) : (
+                  <span className="w-[30px]" />
+                )}
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onMouseDown={stopMouseDown}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    sendAction({ type: "prev" });
+                  }}
+                  className="flex h-[34px] w-[34px] items-center justify-center rounded-full border-0 bg-transparent text-white/85 hover:text-white active:scale-90 transition-all outline-none cursor-pointer"
+                  aria-label="Previous"
+                >
+                  <SkipPrevious size={24} weight="Bold" />
+                </button>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onMouseDown={stopMouseDown}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    sendAction({ type: "togglePlay" });
+                  }}
+                  className="inline-flex h-[40px] w-[40px] items-center justify-center rounded-full bg-white text-black shadow transition-all duration-150 ease-out hover:scale-105 active:scale-95 border-none cursor-pointer"
+                  aria-label={isPlaying ? "Pause" : "Play"}
+                >
+                  <span
+                    className={`flex items-center justify-center ${
+                      isPlaying ? "" : "translate-x-[1px]"
+                    }`}
+                  >
+                    <PlayerMorphIcon
+                      icon={isPlaying ? ICON_PAUSE : ICON_PLAY}
+                      size={18}
+                    />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onMouseDown={stopMouseDown}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    sendAction({ type: "next" });
+                  }}
+                  className="flex h-[34px] w-[34px] items-center justify-center rounded-full border-0 bg-transparent text-white/85 hover:text-white active:scale-90 transition-all outline-none cursor-pointer"
+                  aria-label="Next"
+                >
+                  <SkipNext size={24} weight="Bold" />
+                </button>
+                <span className="w-[30px]" />
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="flex h-screen w-screen select-none flex-col justify-start bg-transparent antialiased overflow-hidden font-sans p-1 m-0 border-0"
-      style={
-        { WebkitAppRegion: locked ? "no-drag" : "drag" } as React.CSSProperties
-      }
+      style={dragStyle}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* ── Main Overlay Card ── */}
       <motion.div
@@ -363,27 +640,12 @@ export function OverlayPlayer() {
             style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              tabIndex={-1}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleLocked();
-              }}
-              className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg border-0 bg-transparent transition-colors outline-none cursor-pointer active:scale-90 ${
-                locked ? "text-white" : "text-white/40 hover:text-white"
-              }`}
-              aria-label={
-                locked ? "Déverrouiller la position" : "Fixer la position"
-              }
-              title={locked ? "Déverrouiller la position" : "Fixer la position"}
-            >
-              {locked ? <PinFill size={15} /> : <PinLine size={15} />}
-            </button>
+            {(isHovered || locked) && (
+              <>
+                {pinButton}
+                {sizeButton}
+              </>
+            )}
             {!isLocalTrackId(state.track?.id) && (
               <button
                 type="button"

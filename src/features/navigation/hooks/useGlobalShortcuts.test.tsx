@@ -222,18 +222,18 @@ describe("useGlobalShortcuts", () => {
     playerState.durationMs = 60_000;
     mounted = mount(baseOptions());
 
-    press("ArrowRight");
+    press("ArrowRight", { ctrlKey: true });
     expect(playerEngine.seek).toHaveBeenLastCalledWith(15_000);
 
     playerState.positionMs = 15_000;
-    press("ArrowLeft");
+    press("ArrowLeft", { ctrlKey: true });
     expect(playerEngine.seek).toHaveBeenLastCalledWith(10_000);
   });
 
   it("does not seek before 0:00", () => {
     playerState.positionMs = 2_000;
     mounted = mount(baseOptions());
-    press("ArrowLeft");
+    press("ArrowLeft", { ctrlKey: true });
     expect(playerEngine.seek).toHaveBeenLastCalledWith(0);
   });
 
@@ -308,7 +308,7 @@ describe("useGlobalShortcuts", () => {
 
   it("still allows held arrow keys to keep seeking/adjusting volume", () => {
     mounted = mount(baseOptions());
-    press("ArrowRight", { repeat: true });
+    press("ArrowRight", { repeat: true, ctrlKey: true });
     expect(playerEngine.seek).toHaveBeenCalledTimes(1);
   });
 

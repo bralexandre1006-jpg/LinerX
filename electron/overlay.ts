@@ -61,7 +61,14 @@ export interface OverlaySettings {
   customX?: number | null;
   customY?: number | null;
   locked?: boolean;
+  size?: OverlaySize;
 }
+
+export type OverlaySize = "compact" | "large";
+const OVERLAY_SIZES: Record<OverlaySize, { width: number; height: number }> = {
+  compact: { width: 320, height: 56 },
+  large: { width: 400, height: 176 },
+};
 
 const CYRILLIC_TO_QWERTY: Record<string, string> = {
   й: "Q",
@@ -187,6 +194,7 @@ export class OverlayManager {
   private alwaysOnTop = true;
   private customPos: { x: number; y: number } | null = null;
   private locked = false;
+  private size: OverlaySize = "compact";
   private userMoving = false;
   private wasAutoOpened = false;
   private isAuthenticated = false;
@@ -382,6 +390,9 @@ export class OverlayManager {
           this.customPos = { x: data.customX, y: data.customY };
         }
         if (typeof data.locked === "boolean") this.locked = data.locked;
+        if (data.size === "compact" || data.size === "large") {
+          this.size = data.size;
+        }
       }
     } catch (e) {
       console.warn("[overlay] Could not read overlay-settings.json:", e);
@@ -404,6 +415,7 @@ export class OverlayManager {
         customX: this.customPos?.x ?? null,
         customY: this.customPos?.y ?? null,
         locked: this.locked,
+        size: this.size,
       };
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
     } catch (e) {
@@ -638,10 +650,13 @@ export class OverlayManager {
   }
 
   private getTargetHeight(): number {
-    return 56;
+    return OVERLAY_SIZES[this.size].height;
   }
 
-  private getWindowBounds(width = 320, height?: number) {
+  private getWindowBounds(
+    width = OVERLAY_SIZES[this.size].width,
+    height?: number,
+  ) {
     let targetDisplay = screen.getPrimaryDisplay();
     try {
       if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
@@ -1396,6 +1411,27 @@ export class OverlayManager {
     });
 
     handleTrusted("overlay:get-locked", () => this.locked);
+
+    handleTrusted("overlay:get-size", () => this.size);
+
+    handleTrusted("overlay:set-size", (_event, size: unknown) => {
+      if (size !== "compact" && size !== "large") return this.size;
+      this.size = size;
+      const win = this.overlayWindow;
+      if (win && !win.isDestroyed()) {
+        const cur = win.getBounds();
+        const { width, height } = OVERLAY_SIZES[size];
+        if (this.customPos) {
+          this.customPos = { x: cur.x, y: cur.y };
+        }
+        win.setBounds(this.getWindowBounds(width, height));
+        if (this.compositor && win.isVisible()) {
+          void this.placeWithCompositor();
+        }
+      }
+      this.savePersistedSettings();
+      return this.size;
+    });
 
     handleTrusted("overlay:set-locked", (_event, locked: unknown) => {
       this.locked = locked === true;

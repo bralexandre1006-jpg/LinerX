@@ -9,6 +9,8 @@ export interface DailyMixesSectionProps {
   mixes: DailyMix[];
   headingMarginTop?: string;
   accentCoverUrl?: string;
+  title?: string;
+  action?: React.ReactNode;
 }
 
 const headingStyle: React.CSSProperties = {
@@ -22,6 +24,8 @@ function DailyMixesSection({
   mixes,
   headingMarginTop = "mt-[22px]",
   accentCoverUrl,
+  title,
+  action,
 }: DailyMixesSectionProps) {
   const { t } = useTranslation();
   if (mixes.length === 0) return null;
@@ -39,9 +43,10 @@ function DailyMixesSection({
             className="font-roboto-flex-heading text-text-primary text-[36px] m-0 leading-none tracking-tight"
             style={headingStyle}
           >
-            {t("home.dailyMixes") || "Your Mixes"}
+            {title || t("home.dailyMixes") || "Your Mixes"}
           </h2>
         </div>
+        {action}
       </div>
 
       <ScrollableRow className="flex gap-[28px] pl-3 pr-3 mt-[12px] overflow-x-auto pb-[2px]">

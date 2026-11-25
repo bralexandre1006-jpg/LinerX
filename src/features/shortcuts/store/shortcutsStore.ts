@@ -82,6 +82,47 @@ function pickKnownShortcuts<T extends object>(
 }
 
 const SHORTCUTS_STORAGE_KEY = "liner_shortcuts_settings_v1";
+const ARROWS_MIGRATION_KEY = "linerx_arrows_skip_tracks_v1";
+
+// LinerX: arrows skip tracks; seeking moves to Ctrl+arrows / [ ]
+function swapArrowDefaults(state: ShortcutsSettings) {
+  try {
+    if (localStorage.getItem(ARROWS_MIGRATION_KEY)) return;
+    localStorage.setItem(ARROWS_MIGRATION_KEY, "1");
+  } catch {
+    return;
+  }
+  const m = state.mainApp;
+  if (
+    m.nextTrack === "Control+Right" &&
+    m.prevTrack === "Control+Left" &&
+    m.seekForward === "Right" &&
+    m.seekBackward === "Left"
+  ) {
+    state.mainApp = {
+      ...m,
+      nextTrack: DEFAULT_SHORTCUTS.mainApp.nextTrack,
+      prevTrack: DEFAULT_SHORTCUTS.mainApp.prevTrack,
+      seekForward: DEFAULT_SHORTCUTS.mainApp.seekForward,
+      seekBackward: DEFAULT_SHORTCUTS.mainApp.seekBackward,
+    };
+  }
+  const p = state.miniplayer;
+  if (
+    p.nextTrack === "]" &&
+    p.prevTrack === "[" &&
+    p.seekForward === "Right" &&
+    p.seekBackward === "Left"
+  ) {
+    state.miniplayer = {
+      ...p,
+      nextTrack: DEFAULT_SHORTCUTS.miniplayer.nextTrack,
+      prevTrack: DEFAULT_SHORTCUTS.miniplayer.prevTrack,
+      seekForward: DEFAULT_SHORTCUTS.miniplayer.seekForward,
+      seekBackward: DEFAULT_SHORTCUTS.miniplayer.seekBackward,
+    };
+  }
+}
 
 let pendingGlobalEdit: PendingGlobalEdit | null = null;
 
@@ -290,6 +331,8 @@ export const useShortcutsStore = create<ShortcutsStoreState>()(
           DEFAULT_SHORTCUTS.miniplayer,
           state.miniplayer,
         );
+
+        swapArrowDefaults(state);
 
         // Normalize all rehydrated shortcuts
         for (const key of Object.keys(

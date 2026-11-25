@@ -196,6 +196,8 @@ export interface LinerElectronApi {
   closeOverlay: () => void;
   getOverlayLocked?: () => Promise<boolean>;
   setOverlayLocked?: (locked: boolean) => Promise<boolean>;
+  getOverlaySize?: () => Promise<"compact" | "large">;
+  setOverlaySize?: (size: "compact" | "large") => Promise<"compact" | "large">;
   onOverlayState: (cb: (state: any) => void) => () => void;
   getOverlayInitialState: () => Promise<any>;
   updateOverlaySettings: (settings: any) => void;
@@ -448,6 +450,8 @@ const api: LinerElectronApi = {
   getOverlayLocked: () => ipcRenderer.invoke("overlay:get-locked"),
   setOverlayLocked: (locked) =>
     ipcRenderer.invoke("overlay:set-locked", locked),
+  getOverlaySize: () => ipcRenderer.invoke("overlay:get-size"),
+  setOverlaySize: (size) => ipcRenderer.invoke("overlay:set-size", size),
   closeOverlay: () => {
     ipcRenderer.send("overlay:close");
   },

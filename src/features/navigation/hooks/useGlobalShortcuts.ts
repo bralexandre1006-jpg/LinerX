@@ -107,12 +107,14 @@ export function useGlobalShortcuts(options: GlobalShortcutsOptions): void {
 
       if (matchesShortcut(event, mainApp.nextTrack)) {
         event.preventDefault();
+        if (event.repeat) return;
         void playerEngine.skipNext();
         return;
       }
 
       if (matchesShortcut(event, mainApp.prevTrack)) {
         event.preventDefault();
+        if (event.repeat) return;
         void playerEngine.skipPrevious();
         return;
       }

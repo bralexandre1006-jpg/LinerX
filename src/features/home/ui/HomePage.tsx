@@ -7,6 +7,7 @@ import { useListeningNow } from "../hooks/useListeningNow";
 import ListeningNowSection from "./ListeningNowSection";
 import { useRecentlyPlayed } from "../hooks/useRecentlyPlayed";
 import { useDailyMixes } from "../hooks/useDailyMixes";
+import { useLinerxMixes } from "../hooks/useLinerxMixes";
 import { useMostSaved, usePopularAlbums } from "../hooks/useExploreCollections";
 import { useTranslation } from "@/languages";
 import Button from "@/shared/ui/Button";
@@ -18,6 +19,7 @@ import {
   FireFill,
   TrophyFill,
   TimeFill,
+  Refresh1Line,
 } from "@mingcute/react";
 
 export default function HomePage() {
@@ -35,7 +37,11 @@ function HomeFeed({ onRetry }: { onRetry: () => void }) {
     useRecentlyPlayed(20);
   const { items: popularAlbums, isLoading: albumsLoading } = usePopularAlbums();
   const { items: mostSaved, isLoading: savedLoading } = useMostSaved();
-  const { data: dailyMixes, isLoading: mixesLoading } = useDailyMixes();
+  const { data: serverMixes, isLoading: serverMixesLoading } = useDailyMixes();
+  const linerxMixes = useLinerxMixes();
+  const usingLinerxMixes = linerxMixes.mixes.length > 0;
+  const dailyMixes = usingLinerxMixes ? linerxMixes.mixes : serverMixes;
+  const mixesLoading = !usingLinerxMixes && serverMixesLoading;
   const hasMixes = dailyMixes.length > 0;
   const firstAlbum = popularAlbums[0];
   const firstAlbumCover =
@@ -111,6 +117,26 @@ function HomeFeed({ onRetry }: { onRetry: () => void }) {
                     mixes={dailyMixes}
                     headingMarginTop="mt-0"
                     accentCoverUrl={homeBackdrop.cover}
+                    title={usingLinerxMixes ? "Tes mixes" : undefined}
+                    action={
+                      <Button
+                        variant="secondary"
+                        onClick={linerxMixes.refresh}
+                        disabled={linerxMixes.isLoading}
+                        title="Régénérer les mixes"
+                        className="!h-[32px] !rounded-[10px] !border-0 px-[12px] gap-[6px]"
+                      >
+                        <Refresh1Line
+                          size={15}
+                          className={
+                            linerxMixes.isLoading ? "animate-spin" : undefined
+                          }
+                        />
+                        <span>
+                          {linerxMixes.isLoading ? "Génération…" : "Régénérer"}
+                        </span>
+                      </Button>
+                    }
                   />
                 </div>
               )

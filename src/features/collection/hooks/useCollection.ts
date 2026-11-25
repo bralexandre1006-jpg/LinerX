@@ -4,6 +4,11 @@ import { queryCache } from "@/shared/cache/queryCache";
 import type { Track } from "@/shared/types";
 import { YOUTUBE_THUMBNAIL_HOST } from "@/shared/youtube";
 import { getDailyMixArtists } from "@/features/home/hooks/useDailyMixes";
+import {
+  getLinerxMix,
+  linerxMixToCollection,
+  LINERX_MIX_PREFIX,
+} from "@/features/home/hooks/useLinerxMixes";
 
 export interface CollectionPageData {
   type?: "playlist" | "album";
@@ -24,6 +29,11 @@ async function loadCollection(
   id: string,
 ): Promise<CollectionPageData> {
   const decodedId = id ? decodeURIComponent(id) : "";
+  if (type === "playlist" && decodedId.startsWith(LINERX_MIX_PREFIX)) {
+    const mix = getLinerxMix(decodedId);
+    if (mix) return linerxMixToCollection(mix);
+    throw new Error("mix not found");
+  }
   const isDailyMix =
     decodedId.startsWith("daily-mix") ||
     decodedId.startsWith("mix-") ||

@@ -6,7 +6,43 @@ import { useToast } from "@/shared/ui";
 import { useTranslation } from "@/languages";
 import type { DropdownMenuItem } from "@/shared/ui/DropdownMenu";
 import type { DailyMix } from "./useDailyMixes";
-import { PlayFill, AddFill } from "@mingcute/react";
+import { PlayFill, AddFill, Playlist2Fill } from "@mingcute/react";
+import { api, ApiError } from "@/shared/api";
+import { notifyLibraryChanged } from "@/features/library/hooks/usePlaylists";
+import { isLocalTrackId } from "@/shared/media/local/localTrackIds";
+
+const SAVE_CONCURRENCY = 4;
+
+async function saveMixAsPlaylist(mix: DailyMix): Promise<number> {
+  const date = new Date().toLocaleDateString("fr-FR");
+  const playlist = await api.createPlaylist({
+    title: `${mix.title} · ${date}`,
+    description: mix.description || undefined,
+  });
+  const ids = [
+    ...new Set(
+      mix.tracks.map((t) => t.id).filter((id) => id && !isLocalTrackId(id)),
+    ),
+  ];
+  let saved = 0;
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < ids.length) {
+      const id = ids[cursor++];
+      try {
+        await api.addPlaylistTrack(playlist.id, id);
+        saved += 1;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 409) saved += 1;
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(SAVE_CONCURRENCY, ids.length) }, worker),
+  );
+  notifyLibraryChanged();
+  return saved;
+}
 
 export function useDailyMixActions(mix: DailyMix) {
   const { t } = useTranslation();
@@ -51,6 +87,23 @@ export function useDailyMixActions(mix: DailyMix) {
     });
   }, [mix, toast, t]);
 
+  const savingRef = useRef(false);
+  const handleSaveAsPlaylist = useCallback(() => {
+    if (savingRef.current || mix.tracks.length === 0) return;
+    savingRef.current = true;
+    toast("Création de la playlist…", "info", { description: mix.title });
+    saveMixAsPlaylist(mix)
+      .then((saved) =>
+        toast("Playlist créée", "checkmark", {
+          description: `${mix.title} (${saved} titres)`,
+        }),
+      )
+      .catch(() => toast("Impossible de créer la playlist", "error"))
+      .finally(() => {
+        savingRef.current = false;
+      });
+  }, [mix, toast]);
+
   const menuItems: DropdownMenuItem[] = [
     {
       id: "play",
@@ -63,6 +116,12 @@ export function useDailyMixActions(mix: DailyMix) {
       label: t("artist.add_to_queue"),
       icon: <AddFill size={16} />,
       onClick: handleAddQueue,
+    },
+    {
+      id: "save_as_playlist",
+      label: "Enregistrer en playlist",
+      icon: <Playlist2Fill size={16} />,
+      onClick: handleSaveAsPlaylist,
     },
   ];
 

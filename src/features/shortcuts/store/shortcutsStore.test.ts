@@ -17,7 +17,7 @@ describe("shortcutsStore", () => {
       DEFAULT_SHORTCUTS.global.quickLikeSong,
     );
     expect(state.mainApp.playPause).toBe("Space");
-    expect(state.mainApp.nextTrack).toBe("Control+Right");
+    expect(state.mainApp.nextTrack).toBe("Right");
     expect(state.miniplayer.playPause).toBe("Space");
     expect(state.miniplayer.likeTrack).toBe("L");
   });
@@ -66,7 +66,7 @@ describe("shortcutsStore", () => {
     useShortcutsStore.getState().setMiniplayerShortcut("likeTrack", "H");
 
     useShortcutsStore.getState().resetSection("miniplayer");
-    expect(useShortcutsStore.getState().miniplayer.nextTrack).toBe("]");
+    expect(useShortcutsStore.getState().miniplayer.nextTrack).toBe("Right");
     expect(useShortcutsStore.getState().miniplayer.likeTrack).toBe("L");
   });
 
